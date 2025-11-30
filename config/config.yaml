@@ -99,3 +99,39 @@ platforms:
     name: "抖音"
   - id: "zhihu"
     name: "知乎"
+  # === 全球综合新闻 (World News) ===
+  - id: "http://feeds.bbci.co.uk/news/world/rss.xml"
+    name: "BBC World"
+  
+  - id: "http://rss.cnn.com/rss/edition.rss"
+    name: "CNN Top"
+
+  - id: "https://rss.nytimes.com/services/xml/rss/nyt/World.xml"
+    name: "NYT World (纽约时报)"
+
+  - id: "https://www.aljazeera.com/xml/rss/all.xml"
+    name: "Al Jazeera (半岛电视台)"
+
+  # === 科技与极客 (Tech & Geek) ===
+  - id: "https://news.ycombinator.com/rss"
+    name: "Hacker News"
+
+  - id: "https://techcrunch.com/feed/"
+    name: "TechCrunch"
+
+  - id: "https://www.theverge.com/rss/index.xml"
+    name: "The Verge"
+
+  - id: "https://feeds.feedburner.com/PythonInsider"
+    name: "Python Insider"
+
+  # === 财经与商业 (Finance) ===
+  - id: "https://search.cnbc.com/rs/search/combinedcms/view.xml?partnerId=wrss01&id=10000664"
+    name: "CNBC Finance"
+
+  - id: "http://feeds.marketwatch.com/marketwatch/topstories/"
+    name: "MarketWatch"
+
+  # === 开源与开发 (Dev) ===
+  - id: "https://github.blog/feed/"
+    name: "GitHub Blog"
