@@ -18,7 +18,7 @@ from typing import Dict, List, Tuple, Optional, Union
 import pytz
 import requests
 import yaml
-
+import feedparser
 
 VERSION = "3.0.5"
 
@@ -514,7 +514,39 @@ class DataFetcher:
                 id_value = id_info
                 name = id_value
 
-            id_to_name[id_value] = name
+                        id_to_name[id_value] = name
+
+            if id_value.startswith("http"):
+                print(f"正在抓取 RSS: {name}")
+                try:
+                    # 解析 RSS
+                    feed = feedparser.parse(id_value)
+                    results[id_value] = {}
+                    
+                    # 转换 RSS 格式为 TrendRadar 内部格式
+                    # 默认取前 15 条，避免刷屏
+                    for index, entry in enumerate(feed.entries[:15], 1):
+                        title = entry.title
+                        url = entry.link
+                        # RSS 通常没有独立的 mobileUrl，直接用原链接
+                        mobile_url = url 
+
+                        if title in results[id_value]:
+                            results[id_value][title]["ranks"].append(index)
+                        else:
+                            results[id_value][title] = {
+                                "ranks": [index],
+                                "url": url,
+                                "mobileUrl": mobile_url,
+                            }
+                    # RSS 处理完毕，跳过后续的普通 API 请求，直接进入下一个平台
+                    continue 
+                except Exception as e:
+                    print(f"RSS 抓取失败 [{name}]: {e}")
+                    failed_ids.append(id_value)
+                    continue
+            # ================= RSS 懒人补丁结束 =================
+
             response, _, _ = self.fetch_data(id_info)
 
             if response:
@@ -522,6 +554,7 @@ class DataFetcher:
                     data = json.loads(response)
                     results[id_value] = {}
                     for index, item in enumerate(data.get("items", []), 1):
+
                         title = item["title"]
                         url = item.get("url", "")
                         mobile_url = item.get("mobileUrl", "")
