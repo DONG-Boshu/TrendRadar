@@ -306,20 +306,78 @@ def count_word_frequency(results, groups, filters, id_to_name):
 def send_to_feishu(url, content):
     try: requests.post(url, json={"msg_type": "text", "content": {"text": content}}, timeout=10)
     except Exception as e: print(f"Feishu Error: {e}")
+        
+def send_email(content):
+    """
+    发送邮件的核心逻辑
+    """
+    # 1. 检查配置是否完整
+    if not CONFIG["EMAIL_FROM"] or not CONFIG["EMAIL_PASSWORD"] or not CONFIG["EMAIL_TO"]:
+        print("⚠️ 邮件配置不完整，跳过发送")
+        return
+
+    try:
+        print("📧 正在发送邮件...")
+        msg = MIMEMultipart()
+        msg['From'] = formataddr((Header("TrendRadar", 'utf-8').encode(), CONFIG["EMAIL_FROM"]))
+        # 处理多个收件人
+        to_list = CONFIG["EMAIL_TO"].replace("，", ",").split(",")
+        msg['To'] = ",".join([formataddr((Header("Subscriber", 'utf-8').encode(), to.strip())) for to in to_list])
+        msg['Subject'] = Header(f"TrendRadar 热点报告 - {get_beijing_time().strftime('%Y-%m-%d %H:%M')}", 'utf-8')
+        msg['Date'] = formatdate(localtime=True)
+        msg['Message-ID'] = make_msgid()
+
+        # 邮件正文
+        msg.attach(MIMEText(content, 'plain', 'utf-8'))
+
+        # 2. 自动识别 SMTP 服务器配置 (如果配置里没填，尝试自动推断)
+        smtp_server = CONFIG["EMAIL_SMTP_SERVER"]
+        smtp_port = int(CONFIG["EMAIL_SMTP_PORT"]) if CONFIG["EMAIL_SMTP_PORT"] else 465
+
+        # 3. 连接服务器
+        if smtp_port == 465:
+            # SSL 连接 (QQ邮箱, 163等)
+            server = smtplib.SMTP_SSL(smtp_server, smtp_port, timeout=10)
+        else:
+            # TLS 连接 (Outlook, Gmail等)
+            server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
+            server.starttls()
+
+        # 4. 登录并发送
+        server.login(CONFIG["EMAIL_FROM"], CONFIG["EMAIL_PASSWORD"])
+        server.sendmail(CONFIG["EMAIL_FROM"], to_list, msg.as_string())
+        server.quit()
+        print("✅ 邮件发送成功！")
+
+    except Exception as e:
+        print(f"❌ 邮件发送失败: {e}")
 
 def send_notifications(stats, failed_ids):
     if not stats and not failed_ids: return
+    
+    # 构造消息内容
     content = f"TrendRadar 热点报告 {get_beijing_time().strftime('%H:%M')}\n\n"
     for item in stats:
         if item["count"] == 0: continue
         content += f"🔥 {item['word']} ({item['count']}条)\n"
         for i, t in enumerate(item["titles"][:5], 1):
             content += f"  {i}. [{t['source_name']}] {t['title']}\n"
+            content += f"     链接: {t['url']}\n" # 把链接加上，方便点击
         content += "\n"
-    if failed_ids: content += f"\n⚠️ 失败源: {', '.join(failed_ids)}"
     
-    if CONFIG["FEISHU_WEBHOOK_URL"]: send_to_feishu(CONFIG["FEISHU_WEBHOOK_URL"], content)
-    # 其他通知渠道逻辑类似，此处省略以保持代码简洁，核心是main.py结构正确
+    if failed_ids: 
+        content += f"\n⚠️ 抓取失败的数据源: {', '.join(failed_ids)}\n"
+        content += "请检查网络代理设置或 config.yaml 中的 ID 是否正确。\n"
+
+    print("--- 准备发送通知 ---")
+    
+    # 发送飞书
+    if CONFIG["FEISHU_WEBHOOK_URL"]: 
+        send_to_feishu(CONFIG["FEISHU_WEBHOOK_URL"], content)
+    
+    # === 关键：这里调用邮件发送 ===
+    if CONFIG["EMAIL_TO"]:
+        send_email(content)
 
 class NewsAnalyzer:
     def run(self):
